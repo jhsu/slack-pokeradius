@@ -14,59 +14,61 @@ var bot = controller.spawn({
 });
 
 // TODO: keep track of encounters per room
-var notifyingRooms = {};
+var notifyingRooms = {
+};
 var encounters = {};
 
 var addMessage = /pokeradius watch/;
 var removeMessage = /pokeradius unwatch/;
+var excludeList = /exclude ([0-9,\s]+)/;
+var includeList = /include ([0-9,\s]+)/;
 
-controller.on('direct_message', function(bot, message) {
-  console.log('direct_message ', message);
-});
+function getChannelConfig(id) {
+  return notifyingRooms[id] || {excludes: {}};
+};
 
-controller.on('message', function(bot, message) {
-  console.log('message ', message);
-});
-
-controller.hears(['pokeradius watch'], 'direct_message,direct_mention,mention,message', function(bot, message) {
-  notifyingRooms[message.channel] = {};
-  bot.reply(message, 'watching');
-});
-
-
-controller.on('message_received', function(bot, message) {
-  // {
-  //   "type": "message",
-  //   "channel": "C2147483705",
-  //   "user": "U2147483697",
-  //   "text": "Hello world",
-  //   "ts": "1355517523.000005"
-  // }
-  console.log('message_received ', message);
+controller.on('ambient', function(bot, message) {
   if (message.type === 'message') {
     if (addMessage.test(message.text)) {
       console.log('added to notifications ', message.channel);
-      notifyingRooms[message.channel] = new Date();
-      bot.replyPublic(message, 'Added channel to pokeradius notifications');
+      notifyingRooms[message.channel] = {excludes: {}};
+      bot.reply(message, 'Added channel to pokeradius notifications');
+
     } else if (removeMessage.test(message.text)) {
       console.log('removed from notifications ', message.channel);
       delete notifyingRooms[message.channel];
-      bot.replyPublic(message, 'Removed channel to pokeradius notifications');
+      bot.reply(message, 'Removed channel to pokeradius notifications');
+
+    } else if (excludeList.test(message.text)) {
+      var config = getChannelConfig(message.channel);
+      var ids = message.match(/exclude ([0-9,\s]+)/)[1].split(',').forEach(function(id) {
+        config.excludes[parseInt(id)] = true;
+      });
+      notifyingRooms[message.channel] = config;
+      bot.reply(message, 'excluding: ' + Object.keys(config.excludes).join(', '));
+
+    } else if (includeList.test(message.text)) {
+      var config = getChannelConfig(message.channel);
+      var ids = message.match(/exclude ([0-9,\s]+)/)[1].split(',').forEach(function(id) {
+        delete config.excludes[parseInt(id)];
+      });
+      notifyingRooms[message.channel] = config;
+      bot.reply(message, 'excluding: ' + Object.keys(config.excludes).join(', '));
     }
   }
-
-  // bot.api.users.info({user: message.user}, function(info) {
-  //   // do something
-  // });
 });
 
 // fetch nearby pokemon
 function fetchNearby(cb) {
+  console.log('fetchinng... ');
   fetch(url)
   .then(function(res) {
     return res.json();
   }).then(function(json) {
+    console.log('resolved');
     cb(json);
+  }).catch(function(e) {
+    console.error(e);
   });
 }
 
@@ -81,23 +83,38 @@ bot.startRTM(function(err, bot, payload) {
     });
     newEncounters = newEncounters.filter(function(enc) {
       return enc.distance < 300;
-    }).map(function(enc) {
-      return [enc.name, enc.direction, enc.distance, new Date(enc.disappear_time).toString()].join(' ');
     });
 
+    console.log('new encounters ', newEncounters.length);
     if (newEncounters.length) {
-      console.log(newEncounters.join("\n"));
       Object.keys(notifyingRooms).forEach(function(channelId) {
-        bot.sendWebhook({
-          text: newEncounters.join("\n"),
-          channel: channelId,
+        console.log('notifying channel ', channelId);
+        var config = getChannelConfig(channelId);
+
+        var notifications = newEncounters.filter(function(enc) {
+          if (config.excludes[enc.pokemon_id]) {
+            console.log('ignoring ', enc.pokemon_id);
+          }
+          return !config.excludes[enc.pokemon_id];
+        }).map(function(enc) {
+          return [enc.name, enc.direction, enc.distance, new Date(enc.disappear_time).toString()].join(' ');
         });
+        console.log(notifications.join("\n"));
+
+        try {
+          bot.send({
+            text: notifications.join("\n"),
+            channel: channelId,
+          });
+        } catch(e) {
+          console.error(e);
+        }
       });
     }
 
     setTimeout(function() {
       fetchNearby(handleResult);
-    }, 2000);
+    }, 5000);
   }
 
   fetchNearby(handleResult);
