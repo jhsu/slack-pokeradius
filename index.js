@@ -42,7 +42,7 @@ controller.on('ambient', function(bot, message) {
 
     } else if (excludeList.test(message.text)) {
       var config = getChannelConfig(message.channel);
-      var ids = message.match(/exclude ([0-9,\s]+)/)[1].split(',').forEach(function(id) {
+      var ids = message.text.match(excludeList)[1].split(',').forEach(function(id) {
         config.excludes[parseInt(id)] = true;
       });
       notifyingRooms[message.channel] = config;
@@ -52,7 +52,7 @@ controller.on('ambient', function(bot, message) {
       bot.reply(message, JSON.stringify(config));
     } else if (includeList.test(message.text)) {
       var config = getChannelConfig(message.channel);
-      var ids = message.match(/exclude ([0-9,\s]+)/)[1].split(',').forEach(function(id) {
+      var ids = message.text.match(includeList)[1].split(',').forEach(function(id) {
         delete config.excludes[parseInt(id)];
       });
       notifyingRooms[message.channel] = config;
