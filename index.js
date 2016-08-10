@@ -75,12 +75,17 @@ function fetchNearby(cb) {
   });
 }
 
+function getKeyFor(enc) {
+  return enc.id + "-" + enc.spawn_point_id;
+};
+
 bot.startRTM(function(err, bot, payload) {
   function handleResult(response) {
     var newEncounters = [];
     response.nearby.forEach(function(enc) {
-      if (!encounters[enc.id]) {
-        encounters[enc.id] = enc;
+      var key = getKeyFor(enc);
+      if (!encounters[key]) {
+        encounters[key] = enc;
         newEncounters.push(enc);
       }
     });
