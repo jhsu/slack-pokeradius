@@ -24,6 +24,10 @@ var excludeList = /exclude ([0-9,\s]+)/;
 var includeList = /include ([0-9,\s]+)/;
 var askConfig = /pokeradius config/;
 
+function channelSubscribed(channelId) {
+  return !!notifyingRooms[channelId];
+}
+
 function getChannelConfig(id) {
   return notifyingRooms[id] || {excludes: {16: true, 41: true, 10: true}};
 };
@@ -41,22 +45,28 @@ controller.on('ambient', function(bot, message) {
       bot.reply(message, 'Removed channel to pokeradius notifications');
 
     } else if (excludeList.test(message.text)) {
+      if (!channelSubscribed(message.channel)) {
+        return;
+      }
       var config = getChannelConfig(message.channel);
       var ids = message.text.match(excludeList)[1].split(',').forEach(function(id) {
         config.excludes[parseInt(id)] = true;
       });
       notifyingRooms[message.channel] = config;
       bot.reply(message, 'excluding: ' + Object.keys(config.excludes).join(', '));
-    } else if (askConfig.test(message.text)) {
-      var config = getChannelConfig(message.channel);
-      bot.reply(message, JSON.stringify(config));
     } else if (includeList.test(message.text)) {
+      if (!channelSubscribed(message.channel)) {
+        return;
+      }
       var config = getChannelConfig(message.channel);
       var ids = message.text.match(includeList)[1].split(',').forEach(function(id) {
         delete config.excludes[parseInt(id)];
       });
       notifyingRooms[message.channel] = config;
       bot.reply(message, 'excluding: ' + Object.keys(config.excludes).join(', '));
+    } else if (askConfig.test(message.text)) {
+      var config = getChannelConfig(message.channel);
+      bot.reply(message, JSON.stringify(config));
     }
   }
 });
