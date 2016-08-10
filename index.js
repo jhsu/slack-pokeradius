@@ -22,9 +22,10 @@ var addMessage = /pokeradius watch/;
 var removeMessage = /pokeradius unwatch/;
 var excludeList = /exclude ([0-9,\s]+)/;
 var includeList = /include ([0-9,\s]+)/;
+var askConfig = /pokeradius config/;
 
 function getChannelConfig(id) {
-  return notifyingRooms[id] || {excludes: {}};
+  return notifyingRooms[id] || {excludes: {16: true, 41: true, 10: true}};
 };
 
 controller.on('ambient', function(bot, message) {
@@ -46,7 +47,9 @@ controller.on('ambient', function(bot, message) {
       });
       notifyingRooms[message.channel] = config;
       bot.reply(message, 'excluding: ' + Object.keys(config.excludes).join(', '));
-
+    } else if (askConfig.test(message.text)) {
+      var config = getChannelConfig(message.channel);
+      bot.reply(message, JSON.stringify(config));
     } else if (includeList.test(message.text)) {
       var config = getChannelConfig(message.channel);
       var ids = message.match(/exclude ([0-9,\s]+)/)[1].split(',').forEach(function(id) {
@@ -97,7 +100,7 @@ bot.startRTM(function(err, bot, payload) {
           }
           return !config.excludes[enc.pokemon_id];
         }).map(function(enc) {
-          return [enc.name, enc.direction, enc.distance, new Date(enc.disappear_time).toString()].join(' ');
+          return [enc.name, "#"+enc.pokemon_id, enc.direction, enc.distance + "m", new Date(enc.disappear_time).toString()].join(' ');
         });
         console.log(notifications.join("\n"));
 
