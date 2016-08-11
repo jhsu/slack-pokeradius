@@ -1,6 +1,7 @@
 var fetch = require('node-fetch');
 var Botkit = require('botkit');
 var controller = Botkit.slackbot();
+var ivCalculator = require('pokemon-go-iv-calculator');
 
 var token = process.env.token;
 var url = process.env.url;
@@ -23,6 +24,7 @@ var removeMessage = /pokeradius unwatch/;
 var excludeList = /exclude ([0-9,\s]+)/;
 var includeList = /include ([0-9,\s]+)/;
 var askConfig = /pokeradius config/;
+var ivcheck = /ivcheck (\w+)\s+([0-9]+)\s+([0-9]+)\s+([0-9]+)/;
 
 function channelSubscribed(channelId) {
   return !!notifyingRooms[channelId];
@@ -67,6 +69,17 @@ controller.on('ambient', function(bot, message) {
     } else if (askConfig.test(message.text)) {
       var config = getChannelConfig(message.channel);
       bot.reply(message, JSON.stringify(config));
+    } else if (ivcheck.test(message.text)) {
+      var match = message.text.match(ivcheck);
+      var name = match[1];
+      var cp = match[2];
+      var hp = match[3];
+      var dust = match[4];
+      var results = ivCalculator.evaluate(name, parseInt(cp), parseInt(hp), parseInt(dust));
+      var percents = results.ivs.map(function(iv) {
+        return iv.perfection * 100;
+      });
+      bot.reply(message, 'possible iv percents: ' + percents.join(', '));
     }
   }
 });

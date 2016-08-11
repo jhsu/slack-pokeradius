@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "botkit": "^0.2.2",
-    "node-fetch": "^1.6.0"
+    "node-fetch": "^1.6.0",
+    "pokemon-go-iv-calculator": "^0.3.2"
   }
 }
